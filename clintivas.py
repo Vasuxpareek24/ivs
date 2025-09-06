@@ -103,6 +103,8 @@ def on_open(ws):
     threading.Thread(target=send_ping, args=(ws,), daemon=True).start()
 
 def on_message(ws, message):
+    print(f"🔔 [DEBUG] Message received: {message}")
+
     global start_pinging
     if message == "3":
         print("✅ Pong received")
