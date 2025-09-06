@@ -7,26 +7,26 @@ from datetime import datetime
 import html
 import os
 from flask import Flask, Response
-import logging
-
-# Setup basic logging for debugging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 # -------------------- CONFIG --------------------
 
+PING_INTERVAL = 15
 start_pinging = False
-ws_instance = None
 
-WS_URL = os.environ.get("WS_URL") or "wss://ivasms.com:2087/socket.io/?token=eyJpdiI6IkxDaWhpcEVYQXhNWlZMWE5yU3Y1V3c9PSIsInZhbHVlIjoicCtSUnZDeVJiVytzalZia1VqNE9rRDRZUThsRVFncjIwdlBjUm9Mb2NuQ2lad1hjaUNJWC9iWU5DZXhXVWpkOE5tdHVDZ2FkdjZhSEhMd2tMUXFVUG5CUVM4eUY1TDdkVmNZa0Uzd0hEaG4vWm9jdktHWjh1MXNrZW4yOWgrUmlrdE1IVkt0cEp1Y1pRakhNNjhGNUgxVGlRUUw2K0RkQThGQ2VuYlhncVFyRk43cTVOcVdmNWJ6L0NHWnJBbGlSeDUvaE5NVzFjMzgvNnUySUUvM0xyWUF6VFp0NU5tQ1haS3NtR1RvbmNsV1FVcEhZSThPa1c5N2cwTFcvVHJnWUdQUFJ2SjQ2YVZ6WHNkb2hVcWk2bTMrVnBDUDhlTnlVM3J5RDhaOGErb0ZKRjAwSXVMRFBSWmlXNEZubVlPS28xSWNMSEpRdGhsM3VuYktTUzQzdmdNNnEvQUtvMEZzUW9xZkJQcHVBSlZHek52QUFTSlJpQnJKYnUxZ3ZOakNiVXZlUnd1WkZLVVdreWdQOVZ3TVRNR1orYmRSODd4WE5BOURxc202MzVnbElRNnFFUm1sb3dYb3k3S2MyUXM3WGFtc3lLZFJWbkxLRlZuU0dGbzJENnYrQmc3aVJ0YUJpZUduaVE2aC9Cd0NwcGVlWHdTTWlvWURSeStFOFNnVU8rTXdONGxZVldrWGtjR1FwKzRaVlh3PT0iLCJtYWMiOiJmN2ZjNjg0NjAwZDRjYjgyYmVmYTI1YmQ1NzUwZjYwNzQwZTJkOGRlZDEyODQ1N2U5NjBmMjMzZTY4NTJmYTk3IiwidGFnIjoiIn0%3D&user=8d75eedc6d2833853cf8fea9790e711a&EIO=4&transport=websocket"
-AUTH_MESSAGE = os.environ.get("AUTH_MESSAGE") or "8d75eedc6d2833853cf8fea9790e711a"
-PING_INTERVAL = int(os.environ.get("PING_INTERVAL", 25))
+WS_URL = os.environ.get("WS_URL") or "wss://ivasms.com:2087/socket.io/?token=eyJpdiI6IkcyeVFWbFk1ZnhmWlZEZUUyOHZnSUE9PSIsInZhbHVlIjoiQWZRYWZmTnUxbHB4VVh2NGNUY0puckVURkZTTy9WMnBIbDMwL1llWFh3QVFRVDczZjVDWTNQUDN1c1IrY1ZqWW1zUS9PWlJic01EMnAyMmRxNVMyV3AvTFZwR1ZTeHNJY0ZaUS9uNU1Rc0xub2s1QTZsZFpZVTBvT2NHLzUvc0FnUGo3b2wxc2FrVXlER3lpeWJ3WmFBZDhEVnI1VEFQTkFyOTYyM2dsT2ZyVXBUaVFlNm1COW1xdzFYd3FYZzQ2L1lLMS9sYzVTd1ZXdXdYVXE4SVo1bVUyaGFneWVHeFRxaWFYTnpMSVQ4NDQ1aHFZeDRodG1DdFVMc0Nxc0FPd2VYUURyeEROeVhhVFlpUmZNeWNWbFI0WWc2ZlQ5SVo0Q3lHQmJsSC90U1U5R294bDZSWGx4b0tKa2JBWmJDSWlQaHpKcXljOElCKzlXNDNyM1d3a1FEU1hzNnd3Zm9reFlqQ1ByS3hQVVM0c3FWUHRyWVJ6R21qZWpZSk5lUzNKM0UyQ2Jzcmh1aEZVdmNNRU0rWVNON2JOL3BHWjh0ZGJXSHNaRW82aXBOL3JST1RyQ1V5eW9KT1lMYVVCbWdCY3J0VC84VnA3YUpmcVlRc0RWeVp5RUR6ZENFZ1YwN1RWN2I4SnVJS1Q4Q0FueHhJRlJyLzlJZlpCRk85dXNwejl5OWFrWnc1cVhIR2JzTjUxTUhQNkpsRXhzekN5TmJhR0V4VXd1dktORm5jPSIsIm1hYyI6IjQ1NDI1NDhmYThhODFiN2JkNmM2NDRjOWRjZmIxNDE5ODliNGQ3NjEyZDEzNmYzMTlhZThkZGI0NGI0YWQxNDEiLCJ0YWciOiIifQ%3D%3D&user=7d8f6191d6b3f074c60a8b326466582e&EIO=4&transport=websocket"
+AUTH_MESSAGE = os.environ.get("AUTH_MESSAGE") or "7d8f6191d6b3f074c60a8b326466582e"
+PING_INTERVAL = int(os.environ.get("PING_INTERVAL", 15))
 
-BOT_TOKEN = os.environ.get("BOT_TOKEN") or "8270301262:AAEldMmzcGK9sRbYk9WrFz6MqYE42EDnwlc"
-GROUP_ID = os.environ.get("GROUP_ID") or "-4967707436"
+BOT_TOKEN = os.environ.get("BOT_TOKEN") or "8262385394:AAF0saW-oHo-jxVESI5D1QbXu7ACpMfspFU"
+GROUP_ID = os.environ.get("GROUP_ID") or "-1002717088045"
 CHANNEL_URL = os.environ.get("CHANNEL_URL") or "https://t.me/mrchd112"
 DEV_URL = os.environ.get("DEV_URL") or "https://t.me/vxxwo"
 CHAT_URL = "https://t.me/DDXOTP"
+
+# Global WebSocket instance
+ws_instance = None
+connection_initialized = False
+
 # -------------------- TELEGRAM --------------------
 
 def send_to_telegram(text):
@@ -85,33 +85,42 @@ def send_ping(ws):
                 break
         time.sleep(PING_INTERVAL)
 
-def on_open(ws):
-    global start_pinging
-    start_pinging = False
-    print("✅ WebSocket connected - ON_OPEN CALLED")
-
-    # Send startup notification
-    send_to_telegram("🔗 <b>WebSocket Connected</b>\n<i>Service is now monitoring for OTPs...</i>")
-
+def initialize_connection(ws):
+    """Manually initialize connection if on_open doesn't trigger"""
+    global connection_initialized, start_pinging
+    
+    if connection_initialized:
+        return
+        
     try:
-        print("⏳ Waiting before sending namespace connection...")
+        print("🔧 Manually initializing WebSocket connection...")
+        send_to_telegram("🔗 <b>WebSocket Connected</b>\n<i>Service is now monitoring for OTPs...</i>")
+        
         time.sleep(1)
         ws.send("40/livesms")
         print("➡️ Sent: 40/livesms")
 
-        print("⏳ Waiting before sending auth...")
         time.sleep(1)
         ws.send(f'42/livesms,["auth","{AUTH_MESSAGE}"]')
         print("🔐 Sent auth token")
 
-        # Start ping thread - make it non-daemon for render
+        # Start ping thread
         ping_thread = threading.Thread(target=send_ping, args=(ws,), daemon=False)
         ping_thread.start()
-        print("🧵 Ping thread started")
+        
+        connection_initialized = True
+        print("✅ Connection initialized manually")
         
     except Exception as e:
-        print(f"❌ Error in on_open: {e}")
-        send_to_telegram(f"❌ <b>on_open Error</b>\n<code>{str(e)}</code>")
+        print(f"❌ Error in manual initialization: {e}")
+
+def on_open(ws):
+    global start_pinging, connection_initialized
+    start_pinging = False
+    connection_initialized = False
+    print("✅ WebSocket on_open triggered")
+    
+    initialize_connection(ws)
 
 def on_message(ws, message):
     global start_pinging
@@ -139,16 +148,14 @@ def on_message(ws, message):
                 otp_match = re.search(r'\b\d{3}[- ]?\d{3}\b|\b\d{6}\b', raw_msg)
                 otp = otp_match.group(0) if otp_match else "N/A"
 
-                # Fix masking to handle short numbers
+                # Fix masking for short numbers
                 if len(recipient) > 9:
                     masked = recipient[:5] + '●' * (len(recipient) - 9) + recipient[-4:]
                 else:
                     masked = recipient
                     
                 now = datetime.now().strftime("%H:%M:%S")
-                service = "WhatsApp" if "whatsapp" in raw_msg.lower() else "Unknown"
 
-                # Your exact original message format
                 telegram_msg = (
                     "<blockquote>📟 <b><u>New OTP Alert</u></b></blockquote>\n"
                     "─────────────────\n"
@@ -178,19 +185,20 @@ def on_error(ws, error):
     print("❌ WebSocket error:", error)
 
 def on_close(ws, code, msg):
-    global start_pinging
+    global start_pinging, connection_initialized
     start_pinging = False
+    connection_initialized = False
     print("🔌 WebSocket closed. Reconnecting in 2s...")
-    send_to_telegram("🔌 <b>Connection Lost</b>\n<i>Attempting to reconnect...</i>")
     time.sleep(2)
-    start_ws_thread()  # Reconnect automatically
+    start_ws_thread()
 
 def connect():
-    global ws_instance
+    global ws_instance, connection_initialized
     print("🔄 Connecting to IVASMS WebSocket...")
+    
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Origin": "https://ivasms.com",
+        "Origin": "https://ivasms.com", 
         "Referer": "https://ivasms.com/",
         "Host": "ivasms.com"
     }
@@ -205,20 +213,26 @@ def connect():
             header=[f"{k}: {v}" for k, v in headers.items()]
         )
 
-        ws_instance.run_forever(ping_interval=60, ping_timeout=10)
+        # Start connection
+        connection_thread = threading.Thread(target=lambda: ws_instance.run_forever(), daemon=False)
+        connection_thread.start()
+        
+        # Wait and check if on_open was called
+        time.sleep(3)
+        if not connection_initialized and hasattr(ws_instance, 'sock') and ws_instance.sock:
+            print("🔧 on_open not triggered, manually initializing...")
+            initialize_connection(ws_instance)
+            
     except Exception as e:
-        print(f"❌ WebSocket connection failed: {e}")
-        time.sleep(5)
-        start_ws_thread()
+        print(f"❌ Connection error: {e}")
 
 def start_ws_thread():
     try:
-        # Use non-daemon thread for render hosting
         t = threading.Thread(target=connect, daemon=False)
         t.start()
         print("🚀 WebSocket thread started")
     except Exception as e:
-        print(f"❌ Failed to start WebSocket thread: {e}")
+        print(f"❌ Failed to start thread: {e}")
 
 # -------------------- FLASK WEB SERVICE --------------------
 
@@ -226,18 +240,18 @@ app = Flask(__name__)
 
 @app.route("/")
 def root():
-    status = "Connected" if ws_instance and hasattr(ws_instance, 'keep_running') and ws_instance.keep_running else "Disconnected"
+    global connection_initialized
+    status = "✅ Connected" if connection_initialized else "❌ Disconnected"
     return Response(f"""
     <html>
     <head><title>IVASMS Service</title></head>
     <body>
         <h2>🚀 IVASMS WebSocket Service</h2>
-        <p><strong>Status:</strong> Running ✅</p>
-        <p><strong>WebSocket:</strong> {status}</p>
+        <p><strong>Status:</strong> {status}</p>
         <p><strong>Ping Interval:</strong> {PING_INTERVAL}s</p>
         <p><strong>Time:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
         <hr>
-        <p><a href="/health">Health Check</a> | <a href="/test">Test Telegram</a></p>
+        <p><a href="/health">Health Check</a> | <a href="/test">Test Telegram</a> | <a href="/force-init">Force Init</a></p>
     </body>
     </html>
     """, status=200, mimetype='text/html')
@@ -258,24 +272,30 @@ def test_telegram():
     )
     
     success = send_to_telegram(test_msg)
-    if success:
-        return Response("✅ Test message sent to Telegram", status=200)
+    return Response("✅ Test message sent" if success else "❌ Failed to send", status=200 if success else 500)
+
+@app.route("/force-init")
+def force_init():
+    global ws_instance
+    if ws_instance and hasattr(ws_instance, 'sock') and ws_instance.sock:
+        initialize_connection(ws_instance)
+        return Response("✅ Force initialization triggered", status=200)
     else:
-        return Response("❌ Failed to send test message", status=500)
+        return Response("❌ WebSocket not connected", status=500)
 
 # -------------------- STARTUP --------------------
 
 if __name__ == "__main__":
     print("🚀 Starting IVASMS Service...")
     
-    # Test Telegram first
+    # Test Telegram
     if send_to_telegram("🚀 <b>Service Started</b>\n<i>IVASMS WebSocket service is initializing...</i>"):
         print("✅ Telegram connection verified")
     
     # Start WebSocket
     start_ws_thread()
     
-    # Start Flask server
+    # Start Flask
     port = int(os.environ.get("PORT", 8080))
     print(f"🌐 Starting Flask server on port {port}")
     
