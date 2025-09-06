@@ -9,24 +9,21 @@ import os
 from flask import Flask, Response
 import logging
 
-# Setup logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Setup basic logging for debugging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # -------------------- CONFIG --------------------
 
-PING_INTERVAL = 25  # Increased ping interval
 start_pinging = False
-reconnect_attempts = 0
-max_reconnect_attempts = 5
+ws_instance = None
 
-# Environment variables
-WS_URL = os.environ.get("WS_URL") or "wss://ivasms.com:2087/socket.io/?token=eyJpdiI6IkxDaWhpcEVYQXhNWlZMWE5yU3Y1V3c9PSIsInZhbHVlIjoicCtSUnZDeVJiVytzalZia1VqNE9rRDRZUThsRVFncjIwdlBjUm9Mb2NuQ2lad1hjaUNJWC9iWU5DZXhXVWpkOE5tdHVDZ2FkdjZhSEhMd2tMUXFVUG5CUVM4eUY1TDdkVmNZa0Uzd0hEaG4vWm9jdktHWjh1MXNrZW4yOWgrUmlrdE1IVkt0cEp1Y1pRakhNNjhGNUgxVGlRUUw2K0RkQThGQ2VuYlhncVFyRk43cTVOcVdmNWJ6L0NHWnJBbGlSeDUvaE5NVzFjMzgvNnUySUUvM0xyWUF6VFp0NU5tQ1haS3NtR1RvbmNsV1FVcEhZSThPa1c5N2cwTFcvVHJnWUdQUFJ2SjQ2YVZ6WHNkb2hVcWk2bTMrVnBDUDhlTnlVM3J5RDhaOGErb0ZKRjAwSXVMRFBSWmlXNEZubVlPS28xSWNMSEpRdGhsM3VuYktTUzQzdmdNNnEvQUtvMEZzUW9xZkJQcHVBSlZHek52QUFTSlJpQnJKYnUxZ3ZOakNiVXZlUnd1WkZLVVdreWdQOVZ3TVRNR1orYmRSODd4WE5BOURxc202MzVnbElRNnFFUm1sb3dYb3k3S2MyUXM3WGFtc3lLZFJWbkxLRlZuU0dGbzJENnYrQmc3aVJ0YUJpZUduaVE2aC9Cd0NwcGVlWHdTTWlvWURSeStFOFNnVU8rTXdONGxZVldrWGtjR1FwKzRaVlh3PT0iLCJtYWMiOiJmN2ZjNjg0NjAwZDRjYjgyYmVmYTI1YmQ1NzUwZjYwNzQwZTJkOGRlZDEyODQ1N2U5NjBmMjMzZTY4NTJmYTk3IiwidGFnIjoiIn0%3D&user=8d75eedc6d2833853cf8fea9790e711a&EIO=4&transport=websocket"
-AUTH_MESSAGE = os.environ.get("AUTH_MESSAGE") or "8d75eedc6d2833853cf8fea9790e711a"
-PING_INTERVAL = int(os.environ.get("PING_INTERVAL", 25))
+WS_URL = os.environ.get("WS_URL") or "wss://ivasms.com:2087/socket.io/?token=eyJpdiI6IkcyeVFWbFk1ZnhmWlZEZUUyOHZnSUE9PSIsInZhbHVlIjoiQWZRYWZmTnUxbHB4VVh2NGNUY0puckVURkZTTy9WMnBIbDMwL1llWFh3QVFRVDczZjVDWTNQUDN1c1IrY1ZqWW1zUS9PWlJic01EMnAyMmRxNVMyV3AvTFZwR1ZTeHNJY0ZaUS9uNU1Rc0xub2s1QTZsZFpZVTBvT2NHLzUvc0FnUGo3b2wxc2FrVXlER3lpeWJ3WmFBZDhEVnI1VEFQTkFyOTYyM2dsT2ZyVXBUaVFlNm1COW1xdzFYd3FYZzQ2L1lLMS9sYzVTd1ZXdXdYVXE4SVo1bVUyaGFneWVHeFRxaWFYTnpMSVQ4NDQ1aHFZeDRodG1DdFVMc0Nxc0FPd2VYUURyeEROeVhhVFlpUmZNeWNWbFI0WWc2ZlQ5SVo0Q3lHQmJsSC90U1U5R294bDZSWGx4b0tKa2JBWmJDSWlQaHpKcXljOElCKzlXNDNyM1d3a1FEU1hzNnd3Zm9reFlqQ1ByS3hQVVM0c3FWUHRyWVJ6R21qZWpZSk5lUzNKM0UyQ2Jzcmh1aEZVdmNNRU0rWVNON2JOL3BHWjh0ZGJXSHNaRW82aXBOL3JST1RyQ1V5eW9KT1lMYVVCbWdCY3J0VC84VnA3YUpmcVlRc0RWeVp5RUR6ZENFZ1YwN1RWN2I4SnVJS1Q4Q0FueHhJRlJyLzlJZlpCRk85dXNwejl5OWFrWnc1cVhIR2JzTjUxTUhQNkpsRXhzekN5TmJhR0V4VXd1dktORm5jPSIsIm1hYyI6IjQ1NDI1NDhmYThhODFiN2JkNmM2NDRjOWRjZmIxNDE5ODliNGQ3NjEyZDEzNmYzMTlhZThkZGI0MGI0YWQxNDEiLCJ0YWciOiIifQ%3D%3D&user=7d8f6191d6b3f074c60a8b326466582e&EIO=4&transport=websocket"
+AUTH_MESSAGE = os.environ.get("AUTH_MESSAGE") or "7d8f6191d6b3f074c60a8b326466582e"
+PING_INTERVAL = int(os.environ.get("PING_INTERVAL", 15))
 
-BOT_TOKEN = os.environ.get("BOT_TOKEN") or "8270301262:AAEldMmzcGK9sRbYk9WrFz6MqYE42EDnwlc"
-GROUP_ID = os.environ.get("GROUP_ID") or "-4967707436"
+BOT_TOKEN = os.environ.get("BOT_TOKEN") or "8262385394:AAF0saW-oHo-jxVESI5D1QbXu7ACpMfspFU"
+GROUP_ID = os.environ.get("GROUP_ID") or "-1002717088045"
 CHANNEL_URL = os.environ.get("CHANNEL_URL") or "https://t.me/mrchd112"
 DEV_URL = os.environ.get("DEV_URL") or "https://t.me/vxxwo"
 CHAT_URL = "https://t.me/DDXOTP"
@@ -35,7 +32,7 @@ CHAT_URL = "https://t.me/DDXOTP"
 
 def send_to_telegram(text):
     retries = 3
-    delay = 2
+    delay = 1
 
     buttons = {
         "inline_keyboard": [
@@ -44,7 +41,7 @@ def send_to_telegram(text):
                 {"text": "🖥️ Developer", "url": DEV_URL}
             ],
             [
-                {"text": "🤖 Managed By", "url": CHAT_URL}
+                {"text": "🤖 Managed By", "url": CHAT_URL},
             ]
         ]
     }
@@ -61,15 +58,15 @@ def send_to_telegram(text):
             response = requests.post(
                 f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
                 data=payload,
-                timeout=15
+                timeout=10
             )
             if response.status_code == 200:
-                logger.info("✅ Message sent to Telegram")
+                print("✅ Message sent to Telegram")
                 return True
             else:
-                logger.error(f"⚠️ Telegram Error [{response.status_code}]: {response.text}")
+                print(f"⚠️ Telegram Error [{response.status_code}]: {response.text}")
         except Exception as e:
-            logger.error(f"❌ Telegram Send Failed (Attempt {attempt+1}/{retries}): {e}")
+            print(f"❌ Telegram Send Failed (Attempt {attempt+1}/{retries}):", e)
         
         if attempt < retries - 1:
             time.sleep(delay)
@@ -83,52 +80,52 @@ def send_ping(ws):
         if start_pinging:
             try:
                 ws.send("3")
-                logger.info("📡 Ping sent (3)")
+                print("📡 Ping sent (3)")
             except Exception as e:
-                logger.error(f"❌ Failed to send ping: {e}")
+                print("❌ Failed to send ping:", e)
                 break
         time.sleep(PING_INTERVAL)
 
 def on_open(ws):
-    global start_pinging, reconnect_attempts
+    global start_pinging
     start_pinging = False
-    reconnect_attempts = 0
-    logger.info("✅ WebSocket connected")
-    
-    # Send test message to Telegram
+    print("✅ WebSocket connected - ON_OPEN CALLED")
+
+    # Send startup notification
     send_to_telegram("🔗 <b>WebSocket Connected</b>\n<i>Service is now monitoring for OTPs...</i>")
 
     try:
-        # Wait and send namespace connection
+        print("⏳ Waiting before sending namespace connection...")
         time.sleep(1)
         ws.send("40/livesms")
-        logger.info("➡️ Sent: 40/livesms")
+        print("➡️ Sent: 40/livesms")
 
-        # Wait and send auth
+        print("⏳ Waiting before sending auth...")
         time.sleep(1)
         ws.send(f'42/livesms,["auth","{AUTH_MESSAGE}"]')
-        logger.info("🔐 Sent auth token")
+        print("🔐 Sent auth token")
 
-        # Start ping thread
-        ping_thread = threading.Thread(target=send_ping, args=(ws,), daemon=True)
+        # Start ping thread - make it non-daemon for render
+        ping_thread = threading.Thread(target=send_ping, args=(ws,), daemon=False)
         ping_thread.start()
+        print("🧵 Ping thread started")
         
     except Exception as e:
-        logger.error(f"❌ Error in on_open: {e}")
+        print(f"❌ Error in on_open: {e}")
+        send_to_telegram(f"❌ <b>on_open Error</b>\n<code>{str(e)}</code>")
 
 def on_message(ws, message):
     global start_pinging
-    logger.info(f"📨 Received: {message}")
+    print(f"📨 Received: {message}")
     
-    try:
-        if message == "3":
-            logger.info("✅ Pong received")
-        elif message.startswith("40/livesms"):
-            logger.info("✅ Namespace joined — starting ping")
-            start_pinging = True
-            # Send confirmation to Telegram
-            send_to_telegram("🎯 <b>Authentication Successful</b>\n<i>Ready to receive OTPs...</i>")
-        elif message.startswith("42/livesms,"):
+    if message == "3":
+        print("✅ Pong received")
+    elif message.startswith("40/livesms"):
+        print("✅ Namespace joined — starting ping")
+        start_pinging = True
+        send_to_telegram("🎯 <b>Authentication Successful</b>\n<i>Ready to receive OTPs...</i>")
+    elif message.startswith("42/livesms,"):
+        try:
             payload = message[len("42/livesms,"):]
             data = json.loads(payload)
 
@@ -139,75 +136,68 @@ def on_message(ws, message):
                 recipient = sms.get("recipient", "Unknown")
                 country = sms.get("country_iso", "??").upper()
 
-                # Extract OTP
                 import re
                 otp_match = re.search(r'\b\d{3}[- ]?\d{3}\b|\b\d{6}\b', raw_msg)
                 otp = otp_match.group(0) if otp_match else "N/A"
 
-                # Mask phone number
-                masked = recipient[:5] + '●' * (len(recipient) - 9) + recipient[-4:] if len(recipient) > 9 else recipient
+                # Fix masking to handle short numbers
+                if len(recipient) > 9:
+                    masked = recipient[:5] + '●' * (len(recipient) - 9) + recipient[-4:]
+                else:
+                    masked = recipient
+                    
                 now = datetime.now().strftime("%H:%M:%S")
+                service = "WhatsApp" if "whatsapp" in raw_msg.lower() else "Unknown"
 
+                # Your exact original message format
                 telegram_msg = (
                     "<blockquote>📟 <b><u>New OTP Alert</u></b></blockquote>\n"
-                    "╭─────────────────╮\n"
+                    "─────────────────\n"
                     f"<blockquote>🌍 <b>Country:</b> <code>{country}</code></blockquote>\n"
                     f"<blockquote>🔐 <b>OTP:</b> <code>{otp}</code></blockquote>\n"
                     f"<blockquote>🕐 <b>Time:</b> <code>{now}</code></blockquote>\n"
                     f"<blockquote>📢 <b>Service:</b> <code>{originator}</code></blockquote>\n"
                     f"<blockquote>📱 <b>Number:</b> <code>{masked}</code></blockquote>\n"
-                    "╰─────────────────╯\n"
+                    "─────────────────\n"
                     "<blockquote>💬 <b>Message:</b></blockquote>\n"
                     f"<blockquote><pre>{html.escape(raw_msg)}</pre></blockquote>\n"
                     "─────────────────\n\n"
                     "<blockquote><i>⚡ Delivered instantly via @DDxOTP</i></blockquote>"
                 )
 
-                logger.info(f"📨 Sending OTP to Telegram: {otp}")
+                print(f"📨 Sending OTP to Telegram: {otp}")
                 send_to_telegram(telegram_msg)
-            else:
-                logger.warning(f"⚠️ Unexpected data format: {data}")
 
-    except Exception as e:
-        logger.error(f"❌ Error parsing message: {e}")
-        logger.error(f"Raw message: {message}")
+            else:
+                print("⚠️ Unexpected data format:", data)
+
+        except Exception as e:
+            print("❌ Error parsing message:", e)
+            print("Raw message:", message)
 
 def on_error(ws, error):
-    logger.error(f"❌ WebSocket error: {error}")
-    send_to_telegram(f"⚠️ <b>WebSocket Error</b>\n<code>{str(error)}</code>")
+    print("❌ WebSocket error:", error)
 
-def on_close(ws, close_status_code, close_msg):
-    global start_pinging, reconnect_attempts
+def on_close(ws, code, msg):
+    global start_pinging
     start_pinging = False
-    reconnect_attempts += 1
-    
-    logger.warning(f"🔌 WebSocket closed. Code: {close_status_code}, Message: {close_msg}")
-    send_to_telegram(f"🔌 <b>Connection Lost</b>\n<i>Attempting to reconnect... (Attempt {reconnect_attempts})</i>")
-    
-    if reconnect_attempts < max_reconnect_attempts:
-        logger.info(f"🔄 Reconnecting in 5 seconds... (Attempt {reconnect_attempts}/{max_reconnect_attempts})")
-        time.sleep(5)
-        start_ws_thread()
-    else:
-        logger.error("❌ Max reconnection attempts reached. Stopping reconnection.")
-        send_to_telegram("❌ <b>Max reconnection attempts reached.</b>\n<i>Service may need manual restart.</i>")
+    print("🔌 WebSocket closed. Reconnecting in 2s...")
+    send_to_telegram("🔌 <b>Connection Lost</b>\n<i>Attempting to reconnect...</i>")
+    time.sleep(2)
+    start_ws_thread()  # Reconnect automatically
 
 def connect():
-    logger.info("🔄 Connecting to IVASMS WebSocket...")
-    
+    global ws_instance
+    print("🔄 Connecting to IVASMS WebSocket...")
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         "Origin": "https://ivasms.com",
         "Referer": "https://ivasms.com/",
-        "Host": "ivasms.com",
-        "Accept": "*/*",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Cache-Control": "no-cache",
-        "Pragma": "no-cache"
+        "Host": "ivasms.com"
     }
 
     try:
-        ws = websocket.WebSocketApp(
+        ws_instance = websocket.WebSocketApp(
             WS_URL,
             on_open=on_open,
             on_message=on_message,
@@ -215,22 +205,21 @@ def connect():
             on_close=on_close,
             header=[f"{k}: {v}" for k, v in headers.items()]
         )
-        
-        # Set ping/pong timeout
-        ws.run_forever(ping_interval=60, ping_timeout=10)
-        
+
+        ws_instance.run_forever(ping_interval=60, ping_timeout=10)
     except Exception as e:
-        logger.error(f"❌ Failed to create WebSocket connection: {e}")
-        send_to_telegram(f"❌ <b>Connection Failed</b>\n<code>{str(e)}</code>")
+        print(f"❌ WebSocket connection failed: {e}")
+        time.sleep(5)
+        start_ws_thread()
 
 def start_ws_thread():
-    global reconnect_attempts
     try:
-        t = threading.Thread(target=connect, daemon=False)  # Changed to non-daemon
+        # Use non-daemon thread for render hosting
+        t = threading.Thread(target=connect, daemon=False)
         t.start()
-        logger.info("🚀 WebSocket thread started")
+        print("🚀 WebSocket thread started")
     except Exception as e:
-        logger.error(f"❌ Failed to start WebSocket thread: {e}")
+        print(f"❌ Failed to start WebSocket thread: {e}")
 
 # -------------------- FLASK WEB SERVICE --------------------
 
@@ -238,15 +227,16 @@ app = Flask(__name__)
 
 @app.route("/")
 def root():
+    status = "Connected" if ws_instance and hasattr(ws_instance, 'keep_running') and ws_instance.keep_running else "Disconnected"
     return Response(f"""
     <html>
     <head><title>IVASMS Service</title></head>
     <body>
         <h2>🚀 IVASMS WebSocket Service</h2>
         <p><strong>Status:</strong> Running ✅</p>
-        <p><strong>Reconnect Attempts:</strong> {reconnect_attempts}</p>
+        <p><strong>WebSocket:</strong> {status}</p>
         <p><strong>Ping Interval:</strong> {PING_INTERVAL}s</p>
-        <p><strong>Start Time:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+        <p><strong>Time:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
         <hr>
         <p><a href="/health">Health Check</a> | <a href="/test">Test Telegram</a></p>
     </body>
@@ -259,7 +249,16 @@ def health():
 
 @app.route("/test")
 def test_telegram():
-    success = send_to_telegram("🧪 <b>Test Message</b>\n<i>Service is working correctly!</i>")
+    test_msg = (
+        "<blockquote>🧪 <b><u>Test Message</u></b></blockquote>\n"
+        "─────────────────\n"
+        f"<blockquote>🕐 <b>Time:</b> <code>{datetime.now().strftime('%H:%M:%S')}</code></blockquote>\n"
+        "<blockquote>📡 <b>Status:</b> <code>Service Working</code></blockquote>\n"
+        "─────────────────\n\n"
+        "<blockquote><i>⚡ Test message via @DDxOTP</i></blockquote>"
+    )
+    
+    success = send_to_telegram(test_msg)
     if success:
         return Response("✅ Test message sent to Telegram", status=200)
     else:
@@ -268,23 +267,20 @@ def test_telegram():
 # -------------------- STARTUP --------------------
 
 if __name__ == "__main__":
-    logger.info("🚀 Starting IVASMS Service...")
+    print("🚀 Starting IVASMS Service...")
     
-    # Test Telegram connection first
+    # Test Telegram first
     if send_to_telegram("🚀 <b>Service Started</b>\n<i>IVASMS WebSocket service is initializing...</i>"):
-        logger.info("✅ Telegram connection verified")
-    else:
-        logger.error("❌ Telegram connection failed")
+        print("✅ Telegram connection verified")
     
-    # Start WebSocket connection
+    # Start WebSocket
     start_ws_thread()
     
     # Start Flask server
     port = int(os.environ.get("PORT", 8080))
-    logger.info(f"🌐 Starting Flask server on port {port}")
+    print(f"🌐 Starting Flask server on port {port}")
     
     try:
         app.run(host="0.0.0.0", port=port, threaded=True, debug=False)
     except Exception as e:
-        logger.error(f"❌ Flask server error: {e}")
-        send_to_telegram(f"❌ <b>Server Error</b>\n<code>{str(e)}</code>")
+        print(f"❌ Flask server error: {e}")
